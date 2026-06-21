@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A股量化分析系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body data-stock-query="{{ stock_query }}">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="system-brand" href="/">
+          <span class="brand-mark">A</span>
+          <strong>A股量化分析系统</strong>
+        </a>
+        <nav class="side-nav">
+          <a class="active" href="/" data-view-link="home">市场总览</a>
+          <a href="#quotes" data-view-link="quotes">行情</a>
+          <a href="#watchlist" data-view-link="watchlist">自选股</a>
+        </nav>
+      </aside>
+
+      <div class="workspace">
+        <header class="topbar">
+          <nav class="top-tabs">
+            <a class="active" href="/" data-view-link="home">市场总览</a>
+            <a href="#quotes" data-view-link="quotes">行情</a>
+            <a href="#watchlist" data-view-link="watchlist">自选股</a>
+          </nav>
+          <form class="search" id="searchForm" autocomplete="off">
+            <input id="searchInput" type="search" placeholder="输入股票代码/名称" aria-label="搜索股票" />
+            <button type="submit" aria-label="搜索">搜索</button>
+            <div id="suggestions" class="suggestions" hidden></div>
+          </form>
+        </header>
+
+        <main>
+          <section id="homeView" class="view">
+            <div class="section-head">
+              <div>
+                <h1>市场概览</h1>
+                <p id="marketUpdated">更新中...</p>
+              </div>
+              <button id="refreshBtn" class="primary-btn" type="button">刷新行情</button>
+            </div>
+
+            <div id="marketError" class="notice error" hidden></div>
+
+            <section class="index-grid" id="marketMetrics">
+              <article class="index-card">
+                <span>覆盖股票</span>
+                <strong data-field="total">--</strong>
+                <small>全 A 股样本</small>
+              </article>
+              <article class="index-card red">
+                <span>上涨家数</span>
+                <strong data-field="up">--</strong>
+                <small>市场做多宽度</small>
+              </article>
+              <article class="index-card green">
+                <span>下跌家数</span>
+                <strong data-field="down">--</strong>
+                <small>市场回撤宽度</small>
+              </article>
+              <article class="index-card">
+                <span>平均涨跌幅</span>
+                <strong data-field="avg_pct_change">--</strong>
+                <small>等权市场温度</small>
+              </article>
+              <article class="index-card">
+                <span>成交额</span>
+                <strong data-field="amount">--</strong>
+                <small>全市场资金活跃度</small>
+              </article>
+            </section>
+
+            <section class="home-grid">
+              <div class="left-stack">
+                <div class="panel">
+                  <div class="panel-head">
+                    <h2>市场行情</h2>
+                    <div class="mini-tabs">
+                      <button class="active" type="button">全部A股</button>
+                      <button type="button">沪市A股</button>
+                      <button type="button">深市A股</button>
+                      <button type="button">创业板</button>
+                    </div>
+                  </div>
+                  <div class="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>代码</th>
+                          <th>名称</th>
+                          <th>最新价</th>
+                          <th>涨跌幅</th>
+                          <th>成交额</th>
+                          <th>换手率</th>
+                          <th>市盈率</th>
+                          <th>市净率</th>
+                        </tr>
+                      </thead>
+                      <tbody id="marketTable"></tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <section class="market-chart-grid">
+                  <div class="panel chart-card">
+                    <div class="panel-head">
+                      <h2>市场宽度</h2>
+                      <span>上涨 / 平盘 / 下跌</span>
+                    </div>
+                    <canvas id="breadthChart"></canvas>
+                  </div>
+                  <div class="panel chart-card">
+                    <div class="panel-head">
+                      <h2>涨跌幅分布</h2>
+                      <span>股票数量</span>
+                    </div>
+                    <canvas id="distributionChart"></canvas>
+                  </div>
+                </section>
+              </div>
+
+              <aside class="right-stack">
+                <div class="rank-panels">
+                  <div class="panel">
+                    <div class="panel-head rank-head red"><h2>涨幅榜 TOP10</h2></div>
+                    <div id="gainers" class="rank-list"></div>
+                  </div>
+                  <div class="panel">
+                    <div class="panel-head rank-head green"><h2>跌幅榜 TOP10</h2></div>
+                    <div id="losers" class="rank-list"></div>
+                  </div>
+                </div>
+                <div class="panel">
+                  <div class="panel-head">
+                    <h2>市场资金概览</h2>
+                    <span>单位：亿元</span>
+                  </div>
+                  <canvas id="amountChart" class="wide-chart"></canvas>
+                </div>
+                <div class="panel">
+                  <div class="panel-head">
+                    <h2>市场情绪</h2>
+                    <span>实时宽度估算</span>
+                  </div>
+                  <div class="sentiment-card">
+                    <div class="gauge"><strong id="sentimentScore">--</strong><span>情绪分</span></div>
+                    <dl id="sentimentStats"></dl>
+                  </div>
+                </div>
+              </aside>
+            </section>
+          </section>
+
+          <section id="quotesView" class="view" hidden>
+            <div class="section-head">
+              <div>
+                <h1>A股整体行情</h1>
+                <p id="trendUpdated">指数走势与全市场温度</p>
+              </div>
+              <button id="trendRefreshBtn" class="primary-btn" type="button">刷新行情</button>
+            </div>
+            <div id="trendError" class="notice error" hidden></div>
+            <section class="trend-layout">
+              <div class="panel trend-main">
+                <div class="panel-head">
+                  <h2 id="trendTitle">A股行情折线图</h2>
+                  <span id="trendSource">--</span>
+                </div>
+                <canvas id="marketTrendChart"></canvas>
+                <div id="trendTooltip" class="chart-tooltip" hidden></div>
+              </div>
+              <aside class="trend-side" id="trendCards"></aside>
+            </section>
+          </section>
+
+          <section id="watchlistView" class="view" hidden>
+            <div class="section-head">
+              <div>
+                <h1>自选股</h1>
+                <p>从个股页点击“加入自选”后，会在这里显示最新行情。</p>
+              </div>
+              <button id="watchRefreshBtn" class="primary-btn" type="button">刷新自选</button>
+            </div>
+            <div id="watchEmpty" class="notice">暂无自选股。搜索股票进入个股页后点击“加入自选”。</div>
+            <div id="watchError" class="notice error" hidden></div>
+            <div class="panel" id="watchPanel" hidden>
+              <div class="panel-head">
+                <h2>自选列表</h2>
+                <span id="watchUpdated">--</span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>代码</th>
+                      <th>名称</th>
+                      <th>最新价</th>
+                      <th>涨跌幅</th>
+                      <th>成交额</th>
+                      <th>换手率</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="watchTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <section id="stockView" class="view" hidden>
+            <div id="stockError" class="notice error" hidden></div>
+            <div id="stockLoading" class="loading">正在加载个股行情与量化分析...</div>
+
+            <div id="stockContent" hidden>
+              <div class="stock-summary">
+                <div>
+                  <a class="back-link" href="/">返回市场总览</a>
+                  <h1><span id="stockName">--</span> <small id="stockCode">--</small></h1>
+                  <p id="stockConclusion">--</p>
+                </div>
+                <div class="quote-strip">
+                  <strong id="latestPrice">--</strong>
+                  <span id="latestPct">--</span>
+                  <em id="stockUpdated">--</em>
+                </div>
+                <button class="primary-btn" id="favoriteBtn" type="button">加入自选</button>
+              </div>
+
+              <section class="stock-layout">
+                <div class="panel kline-panel">
+                  <div class="panel-head">
+                    <div class="period-tabs" id="periodTabs">
+                      <button class="active" data-period="60" type="button">60分钟</button>
+                      <button data-period="90" type="button">90分钟</button>
+                      <button data-period="120" type="button">120分钟</button>
+                    </div>
+                    <span id="klineSource">--</span>
+                  </div>
+                  <div class="chart-shell">
+                    <canvas id="klineChart"></canvas>
+                    <div id="chartTooltip" class="chart-tooltip" hidden></div>
+                  </div>
+                </div>
+
+                <aside class="stock-side">
+                  <div class="panel">
+                    <div class="panel-head"><h2>最新情况</h2></div>
+                    <dl id="latestStats" class="stat-list"></dl>
+                  </div>
+                  <div class="panel">
+                    <div class="panel-head"><h2>技术指标</h2></div>
+                    <div id="indicatorTable" class="indicator-table"></div>
+                  </div>
+                </aside>
+              </section>
+
+              <section class="macd-layout">
+                <div class="panel macd-panel">
+                  <div class="panel-head">
+                    <div>
+                      <h2>MACD 独立分析</h2>
+                      <span id="macdSource">可选择不同分钟周期</span>
+                    </div>
+                    <div class="period-tabs" id="macdPeriodTabs">
+                      <button class="active" data-period="60" type="button">60分钟</button>
+                      <button data-period="90" type="button">90分钟</button>
+                      <button data-period="120" type="button">120分钟</button>
+                    </div>
+                  </div>
+                  <div class="macd-shell">
+                    <canvas id="macdChart"></canvas>
+                    <div id="macdTooltip" class="chart-tooltip" hidden></div>
+                  </div>
+                </div>
+                <aside class="panel divergence-panel">
+                  <div class="panel-head"><h2>背离判断</h2></div>
+                  <div id="divergenceBox" class="divergence-box">
+                    <strong>等待 MACD 数据</strong>
+                    <p>加载完成后自动判断顶背离或底背离。</p>
+                  </div>
+                </aside>
+              </section>
+
+              <section class="horizon-grid" id="horizons"></section>
+
+              <section class="analysis-grid">
+                <div class="panel">
+                  <div class="panel-head"><h2>历史回顾</h2></div>
+                  <div id="backtestTable" class="backtest-table"></div>
+                </div>
+                <div class="panel">
+                  <div class="panel-head"><h2>日线参考走势</h2></div>
+                  <canvas id="priceChart" class="wide-chart"></canvas>
+                </div>
+              </section>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>
